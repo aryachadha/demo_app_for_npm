@@ -1,0 +1,13 @@
+{
+  "name": "demo-project",
+  "version": "1.0.0",
+  "description": "Simple demo showcasing @aryachadha/file-upload-kit with Express and Vercel support.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@aryachadha/file-upload-kit": "^1.0.0",
+    "express": "^4.21.2"
+  }
+}

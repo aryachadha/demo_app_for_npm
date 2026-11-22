@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@aryachadha/file-upload-kit Demo</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2rem 1rem;
+      min-height: 100vh;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 2rem; }
+    h1 { font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
+    p.sub { color: var(--muted); font-size: 0.95rem; }
+    .badge {
+      display: inline-block;
+      margin-top: 0.5rem;
+      background: #0284c7;
+      color: white;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .card h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .card p.desc { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      padding: 0.6rem;
+      background: #0b1120;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      cursor: pointer;
+    }
+    button.btn {
+      width: 100%;
+      background: var(--primary);
+      color: #0b1120;
+      font-weight: 600;
+      padding: 0.65rem 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.btn:hover { background: var(--primary-hover); }
+    .status {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .status.ok { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: #86efac; display: block; }
+    .status.err { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+    th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    .btn-del {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-del:hover { background: var(--danger); color: white; }
+    a.link { color: var(--primary); text-decoration: none; margin-right: 0.75rem; }
+    a.link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>@aryachadha/file-upload-kit Demo</h1>
+      <p class="sub">Production file upload management library in action</p>
+      <span class="badge">npm package: @aryachadha/file-upload-kit</span>
+    </header>
+
+    <div class="grid">
+      <!-- Single Upload -->
+      <div class="card">
+        <h2>Single File Upload</h2>
+        <p class="desc">Accepts <code>.png</code>, <code>.jpg</code>, <code>.pdf</code>, <code>.txt</code> (Max 5MB).</p>
+        <form id="singleForm">
+          <input type="file" id="singleFile" name="file" required />
+          <button type="submit" class="btn">Upload Single File</button>
+        </form>
+        <div id="singleStatus" class="status"></div>
+      </div>
+
+      <!-- Multi Upload -->
+      <div class="card">
+        <h2>Multiple Files Upload</h2>
+        <p class="desc">Upload up to 5 files with atomic batch rollback on failure.</p>
+        <form id="multiForm">
+          <input type="file" id="multiFiles" name="files" multiple required />
+          <button type="submit" class="btn">Upload Batch</button>
+        </form>
+        <div id="multiStatus" class="status"></div>
+      </div>
+    </div>
+
+    <!-- Files Table -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Uploaded Files List</h2>
+        <button id="refreshBtn" class="btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Stored Filename</th>
+            <th>Size</th>
+            <th>MIME Type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="filesBody">
+          <tr><td colspan="4" style="text-align: center; color: var(--muted);">No files stored yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    async function loadFiles() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        const tbody = document.getElementById('filesBody');
+        tbody.innerHTML = '';
+
+        if (!data.files || data.files.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--muted);">No files stored yet.</td></tr>';
+          return;
+        }
+
+        data.files.forEach(f => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${f.filename}</strong></td>
+            <td>${f.sizeInKB} KB</td>
+            <td><code>${f.mimeType}</code></td>
+            <td>
+              <a href="/uploads/${encodeURIComponent(f.filename)}" target="_blank" class="link">View</a>
+              <button onclick="deleteFile('${encodeURIComponent(f.filename)}')" class="btn-del">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Failed to load files:', err);
+      }
+    }
+
+    async function deleteFile(filename) {
+      if (!confirm('Delete ' + decodeURIComponent(filename) + '?')) return;
+      try {
+        const res = await fetch('/api/files/' + filename, { method: 'DELETE' });
+        const json = await res.json();
+        if (json.success) loadFiles();
+        else alert('Error: ' + (json.message || 'Delete failed'));
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    document.getElementById('singleForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const status = document.getElementById('singleStatus');
+      const input = document.getElementById('singleFile');
+      if (!input.files[0]) return;
+
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      status.className = 'status';
+      status.style.display = 'block';
+      status.textContent = 'Uploading...';
+
+      try {
+        const res = await fetch('/api/upload/single', { method: 'POST', body: fd });
+        const json = await res.json();
+        if (res.ok) {
+          status.className = 'status ok';
+          status.innerHTML = 'Uploaded: <strong>' + json.file.filename + '</strong> (' + json.file.sizeInKB + ' KB)';
+          input.value = '';
+          loadFiles();
+        } else {
+          status.className = 'status err';
+          status.innerHTML = 'Error [' + (json.code || 'ERROR') + ']: ' + json.message;
+        }
+      } catch (err) {
+        status.className = 'status err';
+        status.textContent = 'Upload failed: ' + err.message;
+      }
+    });
+
+    document.getElementById('multiForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const status = document.getElementById('multiStatus');
+      const input = document.getElementById('multiFiles');
+      if (input.files.length === 0) return;
+
+      const fd = new FormData();
+      for (const f of input.files) fd.append('files', f);
+
+      status.className = 'status';
+      status.style.display = 'block';
+      status.textContent = 'Uploading batch...';
+
+      try {
+        const res = await fetch('/api/upload/multiple', { method: 'POST', body: fd });
+        const json = await res.json();
+        if (res.ok) {
+          status.className = 'status ok';
+          status.innerHTML = 'Batch uploaded: <strong>' + json.files.length + '</strong> files.';
+          input.value = '';
+          loadFiles();
+        } else {
+          status.className = 'status err';
+          status.innerHTML = 'Error [' + (json.code || 'ERROR') + ']: ' + json.message;
+        }
+      } catch (err) {
+        status.className = 'status err';
+        status.textContent = 'Batch upload failed: ' + err.message;
+      }
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', loadFiles);
+    window.deleteFile = deleteFile;
+    loadFiles();
+  </script>
+</body>
+</html>
